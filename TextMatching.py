@@ -1,10 +1,11 @@
 import cv2
 import pytesseract
 
-# ✅ Step 1: Set Tesseract Path (Required for Windows)
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+#pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+pytesseract.pytesseract.tesseract_cmd = "/opt/homebrew/bin/tesseract"
 
-# ✅ Step 2: Capture Image from Laptop Camera
+
+
 cap = cv2.VideoCapture(0)  # Open the default camera (0)
 if not cap.isOpened():
     raise RuntimeError("Error: Could not open the camera.")
@@ -32,7 +33,6 @@ while True:
 cap.release()
 cv2.destroyAllWindows()
 
-# ✅ Step 3: Load the Captured Image
 image = cv2.imread(image_path)
 
 if image is None:
@@ -44,13 +44,13 @@ gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 # Apply thresholding for better text visibility
 gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
 
-# ✅ Step 4: Extract Text using Tesseract OCR
+
 extracted_text = pytesseract.image_to_string(gray)
 
-print("\n📌 Extracted Text:")
+print("\nExtracted Text:")
 print(extracted_text)
 
-# ✅ Step 5: Detect Words and Draw Bounding Boxes
+
 h, w, _ = image.shape
 detection_boxes = pytesseract.image_to_boxes(gray)
 
@@ -61,7 +61,7 @@ for box in detection_boxes.splitlines():
     h_ = h - h_
     cv2.rectangle(image, (x, h_), (w_, y), (0, 255, 0), 2)  # Draw bounding box
 
-# ✅ Step 6: Display the Image with Bounding Boxes
+
 cv2.imshow("Text Detection", image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()

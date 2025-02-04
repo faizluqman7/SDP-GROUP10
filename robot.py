@@ -82,7 +82,7 @@ class Robot:
 
         return similarity, matches, img1, img2, kp1, kp2
 
-    def compare(self):
+    def compare_cards(self):
         img_to_compare = self.images[-1]
         similar_images = []
 
