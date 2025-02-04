@@ -1,67 +1,98 @@
 import cv2
 import pytesseract
 
-#pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-pytesseract.pytesseract.tesseract_cmd = "/opt/homebrew/bin/tesseract"
 
+class OCRCamera:
 
+    # pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe" #Windows
+    # pytesseract.pytesseract.tesseract_cmd = "/opt/homebrew/bin/tesseract" #M2 Mac
+    # "/usr/bin/tesseract" #Raspbery Pi
+    def __init__(self, tesseract_path="/opt/homebrew/bin/tesseract"):
+        """
+        Initialize the OCRCamera class with the specified Tesseract path.
+        :param tesseract_path: Path to the Tesseract executable.
+        """
+        self.tesseract_path = tesseract_path
+        pytesseract.pytesseract.tesseract_cmd = self.tesseract_path
 
-cap = cv2.VideoCapture(0)  # Open the default camera (0)
-if not cap.isOpened():
-    raise RuntimeError("Error: Could not open the camera.")
+    def capture_image(self, image_path="captured_image.jpg"):
+        """
+        Capture an image from the camera and save it to the specified path.
+        :param image_path: Path where the captured image will be saved.
+        """
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            raise RuntimeError("Error: Could not open the camera.")
 
-print("Capturing image... Press 'Space' to capture.")
+        print("Capturing image... Press 'Space' to capture.")
 
-while True:
-    ret, frame = cap.read()  # Capture frame-by-frame
-    if not ret:
-        continue
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                continue
 
-    cv2.imshow("Press 'Space' to Capture, 'Esc' to Exit", frame)
+            cv2.imshow("Press 'Space' to Capture, 'Esc' to Exit", frame)
+            key = cv2.waitKey(1) & 0xFF
 
-    key = cv2.waitKey(1) & 0xFF
-    if key == 32:  # Spacebar to capture image
-        image_path = "captured_image.jpg"
-        cv2.imwrite(image_path, frame)
-        print(f"Image saved as {image_path}")
-        break
-    elif key == 27:  # Escape key to exit
+            if key == 32:  # Spacebar
+                cv2.imwrite(image_path, frame)
+                print(f"Image saved as {image_path}")
+                break
+            elif key == 27:  # Escape key
+                cap.release()
+                cv2.destroyAllWindows()
+                exit()
+
         cap.release()
         cv2.destroyAllWindows()
-        exit()
+        return image_path
 
-cap.release()
-cv2.destroyAllWindows()
+    def extract_text(self, image_path):
+        """
+        Extract text from the given image using Tesseract OCR.
+        :param image_path: Path to the image file.
+        :return: Extracted text.
+        """
+        image = cv2.imread(image_path)
+        if image is None:
+            raise FileNotFoundError(f"Error: Unable to load the image {image_path}")
 
-image = cv2.imread(image_path)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
 
-if image is None:
-    raise FileNotFoundError(f"Error: Unable to load the image {image_path}")
+        extracted_text = pytesseract.image_to_string(gray)
+        return extracted_text
 
-# Convert to grayscale
-gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    def detect_text_boxes(self, image_path):
+        """
+        Detect text in an image and draw bounding boxes around words.
+        :param image_path: Path to the image file.
+        """
+        image = cv2.imread(image_path)
+        if image is None:
+            raise FileNotFoundError(f"Error: Unable to load the image {image_path}")
 
-# Apply thresholding for better text visibility
-gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+        h, w, _ = image.shape
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+
+        detection_boxes = pytesseract.image_to_boxes(gray)
+        for box in detection_boxes.splitlines():
+            b = box.split()
+            x, y, w_, h_ = int(b[1]), int(b[2]), int(b[3]), int(b[4])
+            y = h - y  # Convert Y-coordinates
+            h_ = h - h_
+            cv2.rectangle(image, (x, h_), (w_, y), (0, 255, 0), 2)
+
+        cv2.imshow("Text Detection", image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
 
-extracted_text = pytesseract.image_to_string(gray)
-
-print("\nExtracted Text:")
-print(extracted_text)
-
-
-h, w, _ = image.shape
-detection_boxes = pytesseract.image_to_boxes(gray)
-
-for box in detection_boxes.splitlines():
-    b = box.split()
-    x, y, w_, h_ = int(b[1]), int(b[2]), int(b[3]), int(b[4])
-    y = h - y  # Convert Y-coordinates
-    h_ = h - h_
-    cv2.rectangle(image, (x, h_), (w_, y), (0, 255, 0), 2)  # Draw bounding box
-
-
-cv2.imshow("Text Detection", image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+if __name__ == "__main__":
+    ocr = OCRCamera()
+    img_path = ocr.capture_image()
+    text = ocr.extract_text(img_path)
+    print("\nExtracted Text:")
+    print(text)
+    ocr.detect_text_boxes(img_path)
